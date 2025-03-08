@@ -18,7 +18,7 @@ app.post('/urlToScrap', async (req, res) => {
     let timeer = 0
 
     setInterval(() => {
-        timeer = timeer + 500
+        timeer = timeer + .5
     }, 500);
 
     try {
@@ -47,9 +47,6 @@ app.post('/urlToScrap', async (req, res) => {
         try {
             let statuss
             let count = 0;
-
-
-
             
             let browser1 = await puppeteer.launch({
                 headless: true,
@@ -83,14 +80,14 @@ app.post('/urlToScrap', async (req, res) => {
 
                     if(page1.isClosed()){
                         console.log('page is closed due status 403, reopeing page');
-                        browser = await puppeteer.launch({
+                        browser1 = await puppeteer.launch({
                         headless: true,
                         //slowMo: 1000,
                         args: [`--proxy-server=${proxyURL}`]
                         });
                     
-                        page1 = await browser.newPage();
-                        await page.authenticate({ username, password });
+                        page1 = await browser1.newPage();
+                        await page1.authenticate({ username, password });
                     
                         await page1.setRequestInterception(true);
 
@@ -107,10 +104,7 @@ app.post('/urlToScrap', async (req, res) => {
             }
         });                    
 }
-
 ///////////////////////////
-
-                //await page.setUserAgent(getRandomUserAgent());
 
                 const check = await page1.goto(url, { waitUntil: 'domcontentloaded' });
 
@@ -142,7 +136,6 @@ app.post('/urlToScrap', async (req, res) => {
             args: [`--proxy-server=${proxyURL}`]
         });
 
-        
                             let page = await browser.newPage();
                             await page.authenticate({ username, password });
         
@@ -161,7 +154,6 @@ app.post('/urlToScrap', async (req, res) => {
                             }
                             });
             const allInfo = [];
-
 
             for (const href of Hrefs) {
                 count++;
@@ -320,7 +312,7 @@ app.post('/urlToScrap', async (req, res) => {
                     }
 
                     allInfo.push(data);
-                    console.log(allInfo);
+                    console.log(data);
                     }else {
                         await page.close();
                         await browser.close();
