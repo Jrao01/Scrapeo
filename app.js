@@ -39,7 +39,7 @@ app.post('/urlToScrap', async (req, res) => {
         const parteShapeCodificada = decodeURIComponent(urlParts[1]);
         const codifiedurl = encodeURIComponent(parteShapeCodificada);
 
-        for (let i = 1; i <= 1; i++) {
+        for (let i = 1; i <= 5; i++) {
             const joinedUrl = `${urlParts[0]}pagina-${i}?shape=${codifiedurl}`;
             newUrls.push(joinedUrl);
         }
@@ -48,41 +48,75 @@ app.post('/urlToScrap', async (req, res) => {
             let statuss
             let count = 0;
 
+
+
+            
+            let browser1 = await puppeteer.launch({
+                headless: true,
+                //slowMo: 1000,
+            args: [`--proxy-server=${proxyURL}`]
+            });
+
+        let page1 = await browser1.newPage();
+        await page1.authenticate({ username, password });
+
+        await page1.setRequestInterception(true);
+
+        // Variable para controlar si se debe abortar todas las solicitudes
+
+        page1.on('request', (request) => {
+            const resourceType = request.resourceType();
+
+            console.log(resourceType)
+            let abortRequests = true;
+            if (abortRequests && resourceType == 'document') {
+                request.continue();
+            } else {
+                request.abort();
+            }
+        });
+
             for (const url of newUrls) {
                 do{
                     
-                    const browser = await puppeteer.launch({
+////////////////////////////
+
+                    if(page1.isClosed()){
+                        console.log('page is closed due status 403, reopeing page');
+                        browser = await puppeteer.launch({
                         headless: true,
                         //slowMo: 1000,
-                    args: [`--proxy-server=${proxyURL}`]
-                    });
+                        args: [`--proxy-server=${proxyURL}`]
+                        });
+                    
+                        page1 = await browser.newPage();
+                        await page.authenticate({ username, password });
+                    
+                        await page1.setRequestInterception(true);
 
-                const page = await browser.newPage();
-                await page.authenticate({ username, password });
+                            page1.on('request', (request) => {
+                            const resourceType = request.resourceType();
+            
+            if (resourceType == 'image' && request.url().includes('googleapis')) {
+                console.log(request.url());
+                request.continue();
+            } else if (resourceType == 'document'){
+                request.continue();
+            } else {
+                request.abort();
+            }
+        });                    
+}
 
-                await page.setRequestInterception(true);
+///////////////////////////
 
-                // Variable para controlar si se debe abortar todas las solicitudes
-                let abortRequests = true;
+                //await page.setUserAgent(getRandomUserAgent());
 
-                page.on('request', (request) => {
-                    const url = request.url();
-                    const resourceType = request.resourceType();
-
-                    console.log(resourceType)
-
-                    if (abortRequests && resourceType == 'document') {
-                        request.continue();
-                    } else {
-                        request.abort();
-                    }
-                });
-
-                const check = await page.goto(url, { waitUntil: 'domcontentloaded' });
+                const check = await page1.goto(url, { waitUntil: 'domcontentloaded' });
 
                 statuss = check.status();
                 if (statuss == 200) {
-                    const newHrefs = await page.evaluate(() => {
+                    const newHrefs = await page1.evaluate(() => {
                         return Array.from(document.querySelectorAll('a.item-link')).map(link => link.href);
                     });
                     
@@ -91,30 +125,30 @@ app.post('/urlToScrap', async (req, res) => {
                     console.log(timeer);
                 } else {
                     console.log(`Página no accesible: ${url} (Status: ${statuss})`);
+                        await page1.close();
+                        await browser1.close();
                 }
-                await page.close();
-                await browser.close();
-
-                }while(statuss !=200 )
+                
+            }while(statuss !=200 )
             }
 
+            await page1.close();
+            await browser1.close();
+
                                 
-        const browser = await puppeteer.launch({
+        let browser = await puppeteer.launch({
             headless: true,
             //slowMo: 1000,
             args: [`--proxy-server=${proxyURL}`]
         });
 
         
-                            const page = await browser.newPage();
+                            let page = await browser.newPage();
                             await page.authenticate({ username, password });
         
                             await page.setRequestInterception(true);
         
-                            let abortRequests = true;
-                    
                             page.on('request', (request) => {
-                            const url = request.url();
                             const resourceType = request.resourceType();
                     
                             if (resourceType == 'image' && request.url().includes('googleapis')) {
@@ -127,13 +161,40 @@ app.post('/urlToScrap', async (req, res) => {
                             }
                             });
             const allInfo = [];
+
+
             for (const href of Hrefs) {
                 count++;
                 let rStatus 
                 do {
-                
 
+                    //await page.setUserAgent(getRandomUserAgent());
+                    if(page.isClosed()){
+                        console.log('page is closed due status 403, reopeing page');
+                        browser = await puppeteer.launch({
+                        headless: true,
+                        //slowMo: 1000,
+                        args: [`--proxy-server=${proxyURL}`]
+                        });
 
+                        page = await browser.newPage();
+                        await page.authenticate({ username, password });
+                    
+                        await page.setRequestInterception(true);
+                    
+                            page.on('request', (request) => {
+                                const resourceType = request.resourceType();
+                                
+                                if (resourceType == 'image' && request.url().includes('googleapis')) {
+                                    console.log(request.url());
+                                    request.continue();
+                                } else if (resourceType == 'document'){
+                                    request.continue();
+                                } else {
+                                    request.abort();
+                                }
+                            });                    
+                    }
                     let rrStatus = await page.goto(href, { waitUntil: 'domcontentloaded' });
 
                     rStatus = rrStatus.status()
@@ -147,10 +208,10 @@ app.post('/urlToScrap', async (req, res) => {
                     console.log('-------')
                     
                     if(rStatus == 200){
+                    //await page.waitForSelector('img#sMap', { timeout: 0 });
                     const data = await page.evaluate((href) => {
 
                         const rawprecio = document.querySelector('span.info-data-price');
-                        
                         const casiprecio =  rawprecio ? rawprecio.innerText.split(" ")[0] : 'N/A';
                         const casicasiprecio = casiprecio.replace(/\./g,"")
                         const precio = parseInt(casicasiprecio);
@@ -243,10 +304,10 @@ app.post('/urlToScrap', async (req, res) => {
                     data.timer = timeer;
 
                     try{
-
+                        //await page.goto(`${href}mapa`)
                         const hreff = await page.evaluate(()=>{
-                            let mapsrc = Array.from(document.querySelectorAll('img[src^="https://maps.googleapis.com/maps/api/staticmap"]'));
-                            let hrefm = mapsrc[0]//mapsrc ? mapsrc.outerHTML : "aun por Scrappear";
+                            let mapsrc = document.querySelectorAll('#sMap');
+                            let hrefm = mapsrc.src//mapsrc ? mapsrc.outerHTML : "aun por Scrappear";
                             console.log(hrefm);
                             return hrefm
                         })
@@ -260,13 +321,16 @@ app.post('/urlToScrap', async (req, res) => {
 
                     allInfo.push(data);
                     console.log(allInfo);
+                    }else {
+                        await page.close();
+                        await browser.close();
                     }
-                
-                    if (!page.isClosed()) {
-                    }                
+                                
                 } while (rStatus != 200);
             }
-            await page.close();
+            if (!page.isClosed()){
+                await page.close();
+            }
         await browser.close();
 
             res.json(allInfo);  // Enviar la respuesta una vez que se completa el scraping
