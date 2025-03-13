@@ -7,6 +7,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
 puppeteer.use(StealthPlugin());
+const XMLHttpRequest = require('xhr2');
 
 app.get('/', (req, res) => {
     res.send('holaaa');
@@ -34,12 +35,12 @@ app.post('/urlToScrap', async (req, res) => {
 
         const direccion = url;
         const newUrls = [];
-
+        let coords
         const urlParts = direccion.split('?shape=');
         const parteShapeCodificada = decodeURIComponent(urlParts[1]);
         const codifiedurl = encodeURIComponent(parteShapeCodificada);
 
-        for (let i = 1; i <= 5; i++) {
+        for (let i = 1; i <= 1; i++) {
             const joinedUrl = `${urlParts[0]}pagina-${i}?shape=${codifiedurl}`;
             newUrls.push(joinedUrl);
         }
@@ -50,7 +51,6 @@ app.post('/urlToScrap', async (req, res) => {
             
             let browser1 = await puppeteer.launch({
                 headless: true,
-                //slowMo: 1000,
             args: [`--proxy-server=${proxyURL}`]
             });
 
@@ -58,15 +58,12 @@ app.post('/urlToScrap', async (req, res) => {
         await page1.authenticate({ username, password });
 
         await page1.setRequestInterception(true);
-
         // Variable para controlar si se debe abortar todas las solicitudes
 
         page1.on('request', (request) => {
             const resourceType = request.resourceType();
-
-            console.log(resourceType)
-            let abortRequests = true;
-            if (abortRequests && resourceType == 'document') {
+        
+            if (resourceType == 'document'){
                 request.continue();
             } else {
                 request.abort();
@@ -75,9 +72,7 @@ app.post('/urlToScrap', async (req, res) => {
 
             for (const url of newUrls) {
                 do{
-                    
 ////////////////////////////
-
                     if(page1.isClosed()){
                         console.log('page is closed due status 403, reopeing page');
                         browser1 = await puppeteer.launch({
@@ -91,21 +86,17 @@ app.post('/urlToScrap', async (req, res) => {
                     
                         await page1.setRequestInterception(true);
 
-                            page1.on('request', (request) => {
-                            const resourceType = request.resourceType();
+                        page1.on('request', (request) => {
+                        const resourceType = request.resourceType();
             
-            if (resourceType == 'image' && request.url().includes('googleapis')) {
-                console.log(request.url());
-                request.continue();
-            } else if (resourceType == 'document'){
-                request.continue();
-            } else {
-                request.abort();
-            }
-        });                    
+                    if (resourceType == 'document'){
+                        request.continue();
+                    } else {
+                        request.abort()
+                    }
+                });                    
 }
 ///////////////////////////
-
                 const check = await page1.goto(url, { waitUntil: 'domcontentloaded' });
 
                 statuss = check.status();
@@ -135,19 +126,17 @@ app.post('/urlToScrap', async (req, res) => {
             //slowMo: 1000,
             args: [`--proxy-server=${proxyURL}`]
         });
-
                             let page = await browser.newPage();
+                            //let page2 = await browser.newPage();
                             await page.authenticate({ username, password });
-        
+                            //await page2.authenticate({ username, password });
+
                             await page.setRequestInterception(true);
         
                             page.on('request', (request) => {
                             const resourceType = request.resourceType();
-                    
-                            if (resourceType == 'image' && request.url().includes('googleapis')) {
-                                console.log(request.url());
-                                request.continue();
-                            } else if (resourceType == 'document'){
+                            
+                            if (resourceType == 'document'){
                                 request.continue();
                             } else {
                                 request.abort();
@@ -160,12 +149,10 @@ app.post('/urlToScrap', async (req, res) => {
                 let rStatus 
                 do {
 
-                    //await page.setUserAgent(getRandomUserAgent());
                     if(page.isClosed()){
                         console.log('page is closed due status 403, reopeing page');
                         browser = await puppeteer.launch({
                         headless: true,
-                        //slowMo: 1000,
                         args: [`--proxy-server=${proxyURL}`]
                         });
 
@@ -176,17 +163,26 @@ app.post('/urlToScrap', async (req, res) => {
                     
                             page.on('request', (request) => {
                                 const resourceType = request.resourceType();
-                                
-                                if (resourceType == 'image' && request.url().includes('googleapis')) {
-                                    console.log(request.url());
-                                    request.continue();
-                                } else if (resourceType == 'document'){
+                                let url = request.url();
+                                if (resourceType == 'document'){
                                     request.continue();
                                 } else {
                                     request.abort();
                                 }
                             });                    
                     }
+
+                    //await page2.goto('https://www.idealista.com/ajax/detailController/staticMapUrl.ajax?adId=97875752&width=646&height=330#',{waitUntil: 'domcontentloaded'});
+                    
+                    
+                            /*let cords = await page2.evaluate(()=>{
+                                let rawCords= document.querySelector('pre');
+                                return rawCords ? rawCords.innerText : 'N/A';
+                            })
+                            coords = cords
+                            console.log(cords);*/
+                        
+                    
                     let rrStatus = await page.goto(href, { waitUntil: 'domcontentloaded' });
 
                     rStatus = rrStatus.status()
@@ -199,9 +195,8 @@ app.post('/urlToScrap', async (req, res) => {
                     console.log('-------')
                     console.log('-------')
                     
-                    if(rStatus == 200){
-                    //await page.waitForSelector('img#sMap', { timeout: 0 });
-                    const data = await page.evaluate((href) => {
+                    if(rStatus == 200 ){
+                    const data = await page.evaluate(() => {
 
                         const rawprecio = document.querySelector('span.info-data-price');
                         const casiprecio =  rawprecio ? rawprecio.innerText.split(" ")[0] : 'N/A';
@@ -224,7 +219,8 @@ app.post('/urlToScrap', async (req, res) => {
                             aire:"N/A",
                             piscina:"N/A",
                             construido: "N/A",
-                            metros2Utiles: "N/A"
+                            metros2Utiles: "N/A",
+                            Coords : "N/A",
                         }
 
                         const carac = document.querySelectorAll('div.details-property-feature-one div.details-property_features ul li')
@@ -254,7 +250,6 @@ app.post('/urlToScrap', async (req, res) => {
                             } else if (content.includes('Calefacción')) {
                                 caracteristicas.calefaccion = 'si';
                                 let rawtipo = content.split(':');
-                                let lengthTipo = rawtipo.length;
                                 let tipo = rawtipo[1]; 
                                 caracteristicas.tipoCalefaccion = tipo;
                             } else if (content.includes('Planta')) {
@@ -287,40 +282,45 @@ app.post('/urlToScrap', async (req, res) => {
                             'tipo de Calefaccion' : caracteristicas.tipoCalefaccion,
                             'planta' : caracteristicas.planta,
                             'ascensor' : caracteristicas.ascensor,
+                            'Coords' : caracteristicas.Coords,
 
                         };
                     });
 
+
+                        const parts = href.split("/");
+                        const numero = parts[parts.length - 2];
+
+                    await page.goto(`https://www.idealista.com/ajax/detailController/staticMapUrl.ajax?adId=${numero}&width=646&height=330#`,{waitUntil: 'domcontentloaded'});
+
+                    let cords = await page.evaluate(()=>{
+                        let rawCords= document.querySelector('pre').innerText;
+                        let textParts = rawCords.toString();
+                        let parts = textParts .split('center=');
+                        let partcoords = parts[1].split('&');
+                        let soloCoords = partcoords[0].split('%2C');
+                        let pureCords = soloCoords[0] + ',' + soloCoords[1];        
+                        return pureCords  ? pureCords  : 'N/A';
+                    });
+                    coords = cords
+
+                    data.coords = cords;
                     data.Anuncio = href;
                     data.inmuebleNro = count;
                     data.timer = timeer;
 
-                    try{
-                        //await page.goto(`${href}mapa`)
-                        const hreff = await page.evaluate(()=>{
-                            let mapsrc = document.querySelectorAll('#sMap');
-                            let hrefm = mapsrc.src//mapsrc ? mapsrc.outerHTML : "aun por Scrappear";
-                            console.log(hrefm);
-                            return hrefm
-                        })
-                        data.Coords = hreff;
-                        
-                    }catch(error){
-                        data.Coords = "N/A";
-                        console.log('error al tratar de recolectar coords');
-                        console.error(error);
-                    }
-
                     allInfo.push(data);
                     console.log(data);
                     }else {
+                        //await page2.close();
                         await page.close();
                         await browser.close();
                     }
                                 
-                } while (rStatus != 200);
+                } while (rStatus != 200 || coords == 'N/A');
             }
             if (!page.isClosed()){
+                //await page2.close();
                 await page.close();
             }
         await browser.close();
