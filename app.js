@@ -1,5 +1,4 @@
 const express = require('express');
-const { timeout } = require('puppeteer');
 const app = express();
 const PORT = 3000;
 app.use(express.urlencoded({ extended: true }));
@@ -16,7 +15,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/urlToScrap', async (req, res) => {
-
+    let habArray = [];
     let timeer = 0
 
     let proxyURL = 'gw.dataimpulse.com:823';
@@ -107,6 +106,7 @@ app.post('/urlToScrap', async (req, res) => {
             } else {
                 console.log(`Página no accesible: ${Link} (Status: ${status})`);
                 await page.close();
+                await browser.close()
             }
         }while(status != 200)
             await browser.close();
@@ -115,6 +115,126 @@ app.post('/urlToScrap', async (req, res) => {
         console.error(error);
         return res.status(500).json({ message: 'error al scrapear' });
     }
+
+    // scrpeando habitaciones
+
+    try{
+let statuss
+
+let browser = await puppeteer.launch({
+    headless: false,
+    args: [`--proxy-server=${proxyURL}`]
+});
+
+let page = await browser.newPage();
+await page.authenticate({ username, password });    
+await page.setRequestInterception(true);
+page.on('request', (request) => {
+    const resourceType = request.resourceType();
+    if (resourceType == 'document' || resourceType == 'script'  || resourceType == 'xhr' || resourceType == 'fetch' ) {
+        request.continue();
+    } else {
+        //console.log(request.url(),' : ', request.resourceType());
+        //request.continue();
+        request.abort();
+    }
+});
+        do{
+
+        ///-----------------------------------------///
+
+        if(page.isClosed()){
+            console.log('page is closed due status 403, reopeing page');
+            browser = await puppeteer.launch({
+            headless: false,
+            args: [`--proxy-server=${proxyURL}`]
+            });
+        
+            page = await browser.newPage();
+            await page.authenticate({ username, password });
+        
+            await page.setRequestInterception(true);
+
+            page.on('request', (request) => {
+            const resourceType = request.resourceType();
+            if (resourceType == 'document'){
+                request.continue();
+            } else {
+                request.continue()
+                //request.abort()
+            } })
+        };
+
+        ///-----------------------------------------///
+
+        let HabLink = listLink.split('venta-viviendas');
+
+        let newhabLink = `${HabLink[0]}alquiler-habitacion${HabLink[1]}&ordenado-por=precios-asc`;
+        
+        const checkk = await page.goto(newhabLink, { waitUntil: 'domcontentloaded', timeout: 0 });
+        statuss = checkk.status();
+        if (statuss == 200) {
+
+            const hablinks = await page.evaluate(() => {
+                let links = document.querySelectorAll('a.item-link');
+                let links2 = Array.from(links).slice(0,10).map(link => link.href);
+                return links2;
+            });
+            console.log('---------')
+            console.log('----Hablinks-----')
+            console.log(hablinks)
+            console.log(hablinks.length)
+            console.log('---------')
+            console.log('---------')
+            habArray.push(...hablinks);
+            console.log('----------')
+            console.log('----------')
+            console.log(habArray);
+            console.log(habArray.length);
+            console.log('----------')
+            console.log('----------')
+        } else {
+            console.log(`Página no accesible: ${Link} (Status: ${statuss})`);
+            await page.close();
+            await browser.close();
+        }
+    }while(statuss != 200)
+
+        let HabAll = [];
+
+        for(const url of habArray){
+
+            do{
+                await page.goto(url,{waitUntil:'domcontentloaded'});
+
+                let dataHab = await page.evaluate(()=>{
+                    
+                    const rawprecio = document.querySelector('span.info-data-price');
+                    const casiprecio =  rawprecio ? rawprecio.innerText.split(" ")[0] : 'N/A';
+                    const casicasiprecio = casiprecio.replace(/\./g,"")
+                    const precio = parseInt(casicasiprecio);
+
+                    const rawDate = document.querySelector('p.date-update-text').innerText;
+                    const casiPrecio = rawDate.split('hace ');
+
+                    return {
+                        precio : precio,
+                        actualizado : casiPrecio[1]
+                    }
+                })
+                console.log('info habitacion',dataHab)
+                HabAll.push(dataHab)
+                console.log('habAll:', HabAll)
+                
+            }while(statuss != 200)
+            }
+                
+        await browser.close();
+    }catch(error){
+        console.error(error);
+        return res.status(500).json({ message: 'error al scrapear' });
+    }
+
 
     try {
         const url = listLink;
