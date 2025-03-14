@@ -16,6 +16,7 @@
     "puppeteer": "^24.3.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "xhr2": "^0.2.1"
+    "xhr2": "^0.2.1",
+    "xlsx": "^0.18.5"
   }
 }

@@ -1,13 +1,14 @@
 const express = require('express');
+const { timeout } = require('puppeteer');
 const app = express();
 const PORT = 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const XLSX = require('xlsx');
 
 puppeteer.use(StealthPlugin());
-const XMLHttpRequest = require('xhr2');
 
 app.get('/', (req, res) => {
     res.send('holaaa');
@@ -18,15 +19,105 @@ app.post('/urlToScrap', async (req, res) => {
 
     let timeer = 0
 
+    let proxyURL = 'gw.dataimpulse.com:823';
+    let password = '67e4b118d2a4651a';
+    let username = '10461ca1d2a9c33bcb99';
+
     setInterval(() => {
         timeer = timeer + .5
     }, 500);
 
+    let MotherCoords
+    let Link
+    let listLink
+
+    try{
+        const workbook = XLSX.readFile('./Busquedapisoalquilerhabitaciones.xlsx');
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const coordsAddress = 'C2';
+        const linkMaps = sheet[coordsAddress] ? sheet[coordsAddress].v : 'N/A';
+        MotherCoords = linkMaps.split('place/')[1];
+        console.log(MotherCoords);
+        let doneCoords = MotherCoords.replace(',','/');
+        Link = `https://www.idealista.com/point/venta-viviendas/${doneCoords}/13/mapa-google`; 
+
+        let browser = await puppeteer.launch({
+            headless: false,
+            args: [`--proxy-server=${proxyURL}`]
+        });
+
+        let page = await browser.newPage();
+        await page.authenticate({ username, password });    
+        await page.setRequestInterception(true);
+        page.on('request', (request) => {
+            const resourceType = request.resourceType();
+            if (resourceType == 'document' || resourceType == 'script'  || resourceType == 'xhr' || resourceType == 'fetch' ) {
+                request.continue();
+            } else {
+                //console.log(request.url(),' : ', request.resourceType());
+                request.continue();
+                //request.abort();
+            }
+        });
+
+        let status
+        do{
+
+            if(page.isClosed()){
+                console.log('page is closed due status 403, reopeing page');
+                browser = await puppeteer.launch({
+                headless: false,
+                args: [`--proxy-server=${proxyURL}`]
+                });
+            
+                page = await browser.newPage();
+                await page.authenticate({ username, password });
+            
+                await page.setRequestInterception(true);
+
+                page.on('request', (request) => {
+                const resourceType = request.resourceType();
+                if (resourceType == 'document'){
+                    request.continue();
+                } else {
+                    request.continue()
+                    //request.abort()
+                } })
+            };  
+
+            const check = await page.goto(Link, { waitUntil: 'load', timeout: 0 });
+            status = check.status();
+            if (status == 200) {
+                await page.waitForSelector('a#listing-view-button', {timeout: 0});
+                listLink = await page.evaluate(() => {
+                    return document.querySelector('a#listing-view-button').href;
+                });
+                await page.locator('a#listing-view-button').click();
+                console.log('-------')
+                console.log('clickkk')
+                console.log('-------')
+
+                console.log('-------')
+                console.log('-------');
+                console.log(Link);
+                console.log(listLink);
+                console.log('-------')
+                console.log('-------')
+            } else {
+                console.log(`Página no accesible: ${Link} (Status: ${status})`);
+                await page.close();
+            }
+        }while(status != 200)
+            await browser.close();
+
+    }catch(error){
+        console.error(error);
+        return res.status(500).json({ message: 'error al scrapear' });
+    }
+
     try {
-        let proxyURL = 'gw.dataimpulse.com:823';
-        let password = '67e4b118d2a4651a';
-        let username = '10461ca1d2a9c33bcb99';
-        const url = req.body.url;
+        const url = listLink;
         const Hrefs = [];
 
         if (!url) {
@@ -50,7 +141,7 @@ app.post('/urlToScrap', async (req, res) => {
             let count = 0;
             
             let browser1 = await puppeteer.launch({
-                headless: true,
+                headless: false,
             args: [`--proxy-server=${proxyURL}`]
             });
 
@@ -76,8 +167,8 @@ app.post('/urlToScrap', async (req, res) => {
                     if(page1.isClosed()){
                         console.log('page is closed due status 403, reopeing page');
                         browser1 = await puppeteer.launch({
-                        headless: true,
-                        //slowMo: 1000,
+                        headless: false,
+                       //slowMo: 1000,
                         args: [`--proxy-server=${proxyURL}`]
                         });
                     
@@ -122,8 +213,8 @@ app.post('/urlToScrap', async (req, res) => {
 
                                 
         let browser = await puppeteer.launch({
-            headless: true,
-            //slowMo: 1000,
+            headless: false,
+          //slowMo: 1000,
             args: [`--proxy-server=${proxyURL}`]
         });
                             let page = await browser.newPage();
@@ -152,7 +243,7 @@ app.post('/urlToScrap', async (req, res) => {
                     if(page.isClosed()){
                         console.log('page is closed due status 403, reopeing page');
                         browser = await puppeteer.launch({
-                        headless: true,
+                        headless: false,
                         args: [`--proxy-server=${proxyURL}`]
                         });
 
@@ -170,18 +261,7 @@ app.post('/urlToScrap', async (req, res) => {
                                     request.abort();
                                 }
                             });                    
-                    }
-
-                    //await page2.goto('https://www.idealista.com/ajax/detailController/staticMapUrl.ajax?adId=97875752&width=646&height=330#',{waitUntil: 'domcontentloaded'});
-                    
-                    
-                            /*let cords = await page2.evaluate(()=>{
-                                let rawCords= document.querySelector('pre');
-                                return rawCords ? rawCords.innerText : 'N/A';
-                            })
-                            coords = cords
-                            console.log(cords);*/
-                        
+                    }                        
                     
                     let rrStatus = await page.goto(href, { waitUntil: 'domcontentloaded' });
 
@@ -221,29 +301,34 @@ app.post('/urlToScrap', async (req, res) => {
                             construido: "N/A",
                             metros2Utiles: "N/A",
                             Coords : "N/A",
+                            construido : "N/A",
+                            ascensor : "N/A"
                         }
 
                         const carac = document.querySelectorAll('div.details-property-feature-one div.details-property_features ul li')
                         carac.forEach(dt=>{
                             let content = dt.innerText;
 
-                            if (content.includes('m²')) {
+                            if (content.includes('m²') && caracteristicas.metros2 == "N/A") {
                                 if(content.includes(',')){
                                     let arrM2 = content.split(',')
                                     if(arrM2[0].includes('construidos')){
-                                        caracteristicas.metros2 = arrM2[0];    
+                                        let cutt = arrM2[0].split(' ');
+                                        caracteristicas.metros2 = cutt[0];    
                                     }
-
                                     if(arrM2[1].includes('útiles')){
-                                        caracteristicas.metros2Utiles = arrM2[1];
+                                        let cuttt = arrM2[1].split(' ');
+                                        caracteristicas.metros2Utiles = cuttt[0];
                                     }else{
                                         caracteristicas.metros2Utiles = 'N/A';
                                     }
                                 }else{
-                                    caracteristicas.metros2 = content;
+                                    let m2cleaned = content.split(' ')[0];
+                                    caracteristicas.metros2 = m2cleaned;
                                 }
                             } else if (content.includes('habitaciones')) {
-                                caracteristicas.nHabitaciones = content;
+                                let cutData = content.split(' '); 
+                                caracteristicas.nHabitaciones = cutData[0];
                             } else if (content.includes('baños')) {
                                 let n =  content.split(" ")
                                 caracteristicas.nBath = n[0];
@@ -253,7 +338,8 @@ app.post('/urlToScrap', async (req, res) => {
                                 let tipo = rawtipo[1]; 
                                 caracteristicas.tipoCalefaccion = tipo;
                             } else if (content.includes('Planta')) {
-                                caracteristicas.planta = content;
+                                let cut = content.split(' ');
+                                caracteristicas.planta = cut[1];
                             }else if (content.includes('Con ascensor')) {
                                 caracteristicas.ascensor = 'si';
                             }else if (content.includes('Construido')) {
@@ -283,6 +369,9 @@ app.post('/urlToScrap', async (req, res) => {
                             'planta' : caracteristicas.planta,
                             'ascensor' : caracteristicas.ascensor,
                             'Coords' : caracteristicas.Coords,
+                            'construido' : caracteristicas.construido,
+                            'aire' : caracteristicas.aire,
+                            'pisicina' : caracteristicas.piscina
 
                         };
                     });
@@ -294,7 +383,11 @@ app.post('/urlToScrap', async (req, res) => {
                     await page.goto(`https://www.idealista.com/ajax/detailController/staticMapUrl.ajax?adId=${numero}&width=646&height=330#`,{waitUntil: 'domcontentloaded'});
 
                     let cords = await page.evaluate(()=>{
-                        let rawCords= document.querySelector('pre').innerText;
+                        let rawCords= document.querySelector('pre') ? document.querySelector('pre').innerText : 'N/A';  
+
+                        if (rawCords == 'N/A') {
+                            return 'N/A';
+                        }
                         let textParts = rawCords.toString();
                         let parts = textParts .split('center=');
                         let partcoords = parts[1].split('&');
@@ -304,7 +397,7 @@ app.post('/urlToScrap', async (req, res) => {
                     });
                     coords = cords
 
-                    data.coords = cords;
+                    data.Coords = cords;
                     data.Anuncio = href;
                     data.inmuebleNro = count;
                     data.timer = timeer;
@@ -324,6 +417,39 @@ app.post('/urlToScrap', async (req, res) => {
                 await page.close();
             }
         await browser.close();
+//----------------------------------------------------------//
+
+const worksheet = XLSX.utils.json_to_sheet(allInfo);
+// Crear una nueva hoja de cálculo a partir del array JSON
+
+// Crear un nuevo libro de trabajo
+const workbook = XLSX.utils.book_new();
+
+// Agregar la hoja de cálculo al libro de trabajo
+XLSX.utils.book_append_sheet(workbook, worksheet, "Datos");
+
+// Obtener la fecha y hora actual
+const now = new Date();
+const year = now.getFullYear();
+const month = String(now.getMonth() + 1).padStart(2, '0'); // Sumar 1 porque los meses van de 0 a 11
+const day = String(now.getDate()).padStart(2, '0');
+const hours = String(now.getHours()).padStart(2, '0');
+const minutes = String(now.getMinutes()).padStart(2, '0');
+const seconds = String(now.getSeconds()).padStart(2, '0');
+
+// Formatear la fecha y hora para el nombre del archivo
+const dateTimeString = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+
+// Crear el nombre del archivo con la fecha y hora
+const filename = `datos_${dateTimeString}.xlsx`;
+
+// Escribir el libro de trabajo en el archivo Excel con el nombre generado
+XLSX.writeFile(workbook, filename);
+
+console.log(`Archivo Excel creado con éxito: ${filename}`);
+
+//----------------------------------------------------------//
+
 
             res.json(allInfo);  // Enviar la respuesta una vez que se completa el scraping
         } catch (error) {
