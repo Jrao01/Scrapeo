@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const { timeout } = require('puppeteer');
 const app = express();
 const PORT = 3000;
@@ -7,6 +7,9 @@ app.use(express.json());
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const XLSX = require('xlsx');
+const path = require('path');
+const fs = require('fs');
+
 
 puppeteer.use(StealthPlugin());
 
@@ -153,7 +156,7 @@ async function tuFuncion() {
 
         const XLSX = require('xlsx');
 
-const workbook = XLSX.readFile('./Busquedapisoalquilerhabitaciones.xlsx'); // Reemplaza 'tu-archivo.xlsx'
+const workbook = XLSX.readFile('./input/input.xlsx'); // Reemplaza 'tu-archivo.xlsx'
 const sheetName = workbook.SheetNames[0];
 const sheet = workbook.Sheets[sheetName];
 
@@ -526,7 +529,10 @@ for(let linkMaps of valoresColumnaC){
                     })
         
                     console.log('solodate:',solodate);
-                    Promediotiempo = calcularPromedioTiempo(solodate)
+                    Promediotiempo = calcularPromedioTiempo(solodate);
+			solodate.length = 0;
+			solodate.splice(0, solodate.length);
+
                     
                 await browser.close();
             }catch(error){
@@ -817,19 +823,18 @@ for(let linkMaps of valoresColumnaC){
         
                                 return {
                                     'Dirección': direccion,
-                                    'Precio': precio,
                                     'm²': caracteristicas.metros2,
                                     'm² Útiles': caracteristicas.metros2Utiles,
+                                    'construido' : caracteristicas.construido,
                                     "Habitaciones" : caracteristicas.nHabitaciones,
                                     "nBaños" : caracteristicas.nBath,
-                                    'calefaccion': caracteristicas.calefaccion,
-                                    'tipo de Calefaccion' : caracteristicas.tipoCalefaccion,
                                     'planta' : caracteristicas.planta,
                                     'ascensor' : caracteristicas.ascensor,
-                                    'Coords' : caracteristicas.Coords,
-                                    'construido' : caracteristicas.construido,
+                                    'calefaccion': caracteristicas.calefaccion,
+                                    'tipo de Calefaccion' : caracteristicas.tipoCalefaccion,
                                     'aire' : caracteristicas.aire,
-                                    'pisicina' : caracteristicas.piscina
+                                    'pisicina' : caracteristicas.piscina,
+                                    'Precio': precio
         
                                 };
                             });
@@ -883,20 +888,18 @@ for(let linkMaps of valoresColumnaC){
                             // Compute the distance
                             const distanceInMeters = haversineDistance(lat1, lon1, lat2, lon2);
                             if (parseFloat(distanceInMeters) < parseFloat(radio)) {
-                            data.Coords = cords;
-                            data.Anuncio = href;
-                            data.inmuebleNro = count;
-                            data.timer = timeer;
-                            data.Rentabilidad = Rentabilidad;
-                            data.HabitacionesEnRango = utilHabs;
-                            data.PrecioMedio = CosteMedio;
-                            data.Promediotiempo = Promediotiempo;
-                            data.DistancaAEntidad = distanceInMeters;
                             data.Entidad = linkMaps.entidad; 
                             data.Ciudad = linkMaps.ciudad;
+                            data.UbicacionEntidad = linkMaps.link;
                             data.nEstudaintesAprox = linkMaps.nestudent;
                             data.TipoEntidad = linkMaps.TipoEnt;
                             data.Agrupacion = linkMaps.agr;
+                            data.DistancaAEntidad = distanceInMeters;
+                            data.HabitacionesEnRango = utilHabs;
+                            data.PrecioMedio = CosteMedio;
+                            data.Promediotiempo = Promediotiempo;
+                            data.Rentabilidad = Rentabilidad;
+                            data.Anuncio = href;
                             allInfo.push(data);
                             console.log(data);
                             console.log(`Distance: ${distanceInMeters} meters`);
@@ -925,6 +928,13 @@ for(let linkMaps of valoresColumnaC){
                 await browser.close();
         //----------------------------------------------------------//
         
+	fs.readdirSync('./').forEach(file => {
+  		if (path.extname(file) === '.xlsx') {
+		    fs.unlinkSync(file);
+    		    console.log(`Archivo Excel eliminado: ${file}`);
+  		}
+	});
+
         const worksheet = XLSX.utils.json_to_sheet(allInfo);
         // Crear una nueva hoja de cálculo a partir del array JSON
         
