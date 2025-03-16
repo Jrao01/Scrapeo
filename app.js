@@ -336,15 +336,15 @@ for(let linkMaps of valoresColumnaC){
         
                     Nextpage = await page.evaluate(()=>{
                         let next = document.querySelector('a.icon-arrow-right-after');
-                        if( !next ){
-                            return {
-                                exists : false,
-                                link : "N/A"
-                            };
-                        }else{
+                        if( next ){
                             return {
                                 exists : true,
                                 link : next.href
+                            };
+                        }else{
+                            return {
+                                exists : false,
+                                link : "N/A"
                             };
                         }
                     });
