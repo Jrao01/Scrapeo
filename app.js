@@ -87,6 +87,7 @@ app.get('/', (req, res) => {
 });
 
 (async (req, res) => {
+    let dofailed
     let direccionCelda
     let Entidad
     let Ciudad
@@ -269,7 +270,7 @@ for(let linkMaps of valoresColumnaC){
         }
     }while(status != 200 || listLink.includes('mapa-google'))
         await browser.close();
-
+    solodate = []
         
     try{
         let statuss
@@ -372,13 +373,23 @@ for(let linkMaps of valoresColumnaC){
                     
                 }while(Nextpage.exists == true)
         
-                } else {
+                } else/* if(status == 404){
+                    dofailed == true
+                    console.log('breaking url:', Nextpage.link)
+                    break
+
+                }else*/{
                     console.log(`Página no accesible: ${Link} (Status: ${statuss})`);
                     await page.close();
                     await browser.close();
                 }
             }while(statuss != 200)
-        
+                
+               /* if(statuss == 404){
+                    Nextpage.link
+                    continue
+                }*/
+
                 let count = 0;
         
                 for(const url of habArray){
@@ -776,9 +787,14 @@ for(let linkMaps of valoresColumnaC){
                                         caracteristicas.nBath = n[0];
                                     } else if (content.includes('Calefacción')) {
                                         caracteristicas.calefaccion = 'si';
-                                        let rawtipo = content.split(':');
-                                        let tipo = rawtipo[1]; 
-                                        caracteristicas.tipoCalefaccion = tipo;
+                                        if(content.includes(':')){
+
+                                            let rawtipo = content.split(':');
+                                            let tipo = rawtipo[1]; 
+                                            caracteristicas.tipoCalefaccion = tipo;
+                                        }else{
+                                            caracteristicas.tipoCalefaccion = content;
+                                        }
                                     } else if (content.includes('Planta')) {
                                         let cut = content.split(' ');
                                         caracteristicas.planta = cut[1];
