@@ -1,5 +1,8 @@
 const express = require('express');
+const { timeout } = require('puppeteer');
 const app = express();
+const PORT = 3000;
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
@@ -83,7 +86,7 @@ app.get('/', (req, res) => {
     console.log('hoolaa');
 });
 
-(async (res) => {
+(async (req, res) => {
     let direccionCelda
     let Entidad
     let Ciudad
@@ -336,15 +339,15 @@ for(let linkMaps of valoresColumnaC){
         
                     Nextpage = await page.evaluate(()=>{
                         let next = document.querySelector('a.icon-arrow-right-after');
-                        if( next ){
+                        if( !next ){
                             return {
-                                exists : true,
-                                link : next.href
+                                exists : false,
+                                link : "N/A"
                             };
                         }else{
                             return {
                                 exists : false,
-                                link : "N/A"
+                                link : next.href
                             };
                         }
                     });
@@ -463,8 +466,8 @@ for(let linkMaps of valoresColumnaC){
                     let numero = HabId[HabId.length - 2];
                     
                     check = await page.goto(`https://www.idealista.com/ajax/detailController/staticMapUrl.ajax?adId=${numero}&width=646&height=330#`,{waitUntil: 'domcontentloaded', timeout:0});
-                    
-                    if (check.status() == 200) {
+                    status = await check.status()
+                    if (status == 200) {
         
                     await page.waitForSelector('pre',{timeout:0});
                     coords = await page.evaluate(()=>{
@@ -602,7 +605,7 @@ for(let linkMaps of valoresColumnaC){
         ///////////////////////////
                         let check = await page1.goto(url, { waitUntil: 'domcontentloaded',timeout: 0 });
         
-                        statuss = check.status();
+                        statuss = await check.status();
                         if (statuss == 200) {
         
                             const newHrefs = await page1.evaluate(() => {
@@ -618,7 +621,7 @@ for(let linkMaps of valoresColumnaC){
                                 let next = document.querySelector('a.icon-arrow-right-after');
                                 if( next ){
                                     return {
-                                        exists : true,
+                                        exists : false,
                                         link : next.href
                                     };
                                 }else{
@@ -704,7 +707,7 @@ for(let linkMaps of valoresColumnaC){
                             
                             let rrStatus = await page.goto(href, { waitUntil: 'domcontentloaded', timeout:0 });
         
-                            rStatus = rrStatus.status()
+                            rStatus = await rrStatus.status()
         
                             console.log('-------')
                             console.log('-------')
@@ -936,17 +939,14 @@ for(let linkMaps of valoresColumnaC){
         console.log(`Archivo Excel creado con éxito: ${filename}`);
         
         //----------------------------------------------------------//
-        
-        
-                    res.json(allInfo);  // Enviar la respuesta una vez que se completa el scraping
+         // Enviar la respuesta una vez que se completa el scraping
                 } catch (error) {
-                    console.error(error);
-                    return res.status(504).json({ message: 'error al recorrer las urls' });
+                    
+                    return console.error(error); 
                 }
         
             } catch (error) {
                 console.error(error);
-                res.status(500).send('error al scrapear');
             }
 
 
@@ -954,8 +954,7 @@ for(let linkMaps of valoresColumnaC){
 
         
     }catch(error){
-        console.error(error);
-        return res.status(500).json({ message: 'error al scrapear' });
+        return console.error(error);
     }
 
     // scrpeando habitaciones
